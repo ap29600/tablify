@@ -40,11 +40,11 @@ int main() {
   // allocate a table for the SV's, an array for width info, and one for
   // the separator positions.
   string_view *table = calloc (
-		  g.lines * g.cols * sizeof(string_view) +  // table
-		  g.cols * sizeof(size_t) + 				// widths
-		  g.lines * sizeof(char),  					// separators
-		  1
-		  );
+          g.lines * g.cols * sizeof(string_view) +  // table
+          g.cols * sizeof(size_t) +                 // widths
+          g.lines * sizeof(char),                   // separators
+          1
+          );
   size_t *width = (size_t*) (table + g.lines * g.cols);
   char *separators = (char*) (width + g.cols);
 
@@ -53,6 +53,7 @@ int main() {
   print_table(g, table, width, separators, delim, stdout);
 
   free(f.data);
+  free(table); // this will also free the other arrays
 }
 
 int good_separator(char c) { 
