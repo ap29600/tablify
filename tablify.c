@@ -8,12 +8,20 @@ typedef struct {
   size_t cols;
 } geometry;
 
+typedef enum {
+  center = 0,
+  left,
+  left_nopad,
+  right,
+  right_nopad,
+} align;
+
 int good_separator(char c);
 int contains(char *s, char c);
-char separator_char(string_view s);
+int sv_len_utf_8(string_view s);
 char separator_line(string_view s);
-void print_padding(size_t width, char sep, FILE *stream);
-void print_entry(string_view s, size_t width, FILE *stream);
+void pad(size_t width, char fill, FILE *stream);
+void print_entry(string_view s, size_t width, FILE *stream, align align);
 string_view slurp_stream(FILE *stream);
 geometry get_table_geometry(string_view f, char delim);
 void read_table(geometry g, string_view f, string_view *table, size_t *width,
@@ -58,39 +66,66 @@ int contains(char *s, char c) {
   return 0;
 }
 
-char separator_char(string_view s) {
-  for (size_t i = 0; i < s.len; i++) {
-    if (isspace(s.data[i]) || s.data[i] == '|' || contains(ignore, s.data[i]))
-      continue;
-    if (good_separator(s.data[i]))
-      return s.data[i];
-    else
-      return 0;
-  }
-  return 0;
+int sv_len_utf_8(string_view s) {
+	int ret = 0;
+	for (;s.len > 0; s.len--)
+	  if (((*s.data++) & 0xc0) != 0x80)
+	    ret++;
+	return ret;
 }
 
+// return the separator character if the line is supposed to be a
+// separator line, otherwise return 0.
 char separator_line(string_view s) {
-  char sep = separator_char(s);
-  if (sep) {
-    // if every character is either whitespace or a good separator
-    for (size_t i = 0; i < s.len; i++)
-      if (!(isspace(s.data[i]) || good_separator(s.data[i]) ||
-            s.data[i] == '|' || contains(ignore, s.data[i])))
-        return 0;
-  }
+  char sep = '\0';
+  for (size_t i = 0; i < s.len; i++)
+    if (!sep && good_separator(s.data[i]))
+	  sep = s.data[i];
+    else if ( isspace(s.data[i]) || good_separator(s.data[i]) || 
+			s.data[i] == '|'   || contains(ignore, s.data[i]) )
+	  continue;
+    else 
+	  return 0;
   return sep;
 }
 
-void print_padding(size_t width, char sep, FILE *stream) {
+void pad(size_t width, char fill, FILE *stream) {
   for (size_t i = 0; i < width; i++) {
-    fprintf(stream, "%c", sep);
+    fprintf(stream, "%c", fill);
   }
 }
 
-void print_entry(string_view s, size_t width, FILE *stream) {
-  fprintf(stream, " " SV_FMT "", SV_ARG(s));
-  print_padding(width - s.len + 1, ' ', stream);
+void print_entry(string_view s, size_t width, FILE *stream, align align) {
+  size_t pad_left = 0, 
+		 pad_right = 0, 
+		 utf8len = sv_len_utf_8(s);
+
+  switch (align) {
+	  case left:
+		  pad_left = 1;
+		  pad_right = width - utf8len -pad_left;
+		  break;
+	  case left_nopad:
+		  pad_left = 0;
+		  pad_right = width - utf8len -pad_left;
+		  break;
+	  case center:
+		  pad_left = (width -utf8len) / 2 ;
+		  pad_right = width - utf8len - pad_left;
+		  break;
+	  case right:
+		  pad_right = 1;
+		  pad_left = width - utf8len - pad_right;
+		  break;
+	  case right_nopad:
+		  pad_right = 0;
+		  pad_left = width - utf8len - pad_right;
+		  break;
+  }
+
+  pad(pad_left, ' ', stream);
+  fprintf(stream, ""SV_FMT"", SV_ARG(s));
+  pad(pad_right, ' ', stream);
 }
 
 string_view slurp_stream(FILE *stream) {
@@ -139,8 +174,9 @@ void read_table(geometry g, string_view f, string_view *table, size_t *width,
     c = 0;
     while (line.len > 0) {
       table[l * g.cols + c] = sv_trim(sv_split(&line, delim));
-      if (width[c] < table[l * g.cols + c].len && !separators[l])
-        width[c] = table[l * g.cols + c].len;
+	  size_t utf8len = sv_len_utf_8(table[l * g.cols + c]);
+      if (width[c] < utf8len && !separators[l])
+        width[c] = utf8len;
       c++;
     }
     l++;
@@ -151,15 +187,15 @@ void print_table(geometry g, string_view *table, size_t *width,
                  char *separators, char delim, FILE *stream) {
   for (size_t i = 0; i < g.lines; i++) {
     if (separators[i]) {
-      print_entry(table[i * g.cols], width[0], stream);
+      print_entry(table[i * g.cols], width[0] + 2 , stream, left_nopad);
       fprintf(stream, "%c", delim);
       for (size_t j = 1; j < g.cols; j++) {
-        print_padding(width[j] + 2, separators[i], stream);
+        pad(width[j] + 2, separators[i], stream);
         printf("|");
       }
     } else {
       for (size_t j = 0; j < g.cols; j++) {
-        print_entry(table[i * g.cols + j], width[j], stream);
+        print_entry(table[i * g.cols + j], width[j] + 2, stream, j==0?left_nopad:center);
         fprintf(stream, "%c", delim);
       }
     }
