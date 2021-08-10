@@ -32,7 +32,7 @@ the cursor) to `tablify` and include the output in their place.
 
 ## build system:
 
-tablify uses (`nobuild`)[https://github.com/tsoding/nobuild], a header-only library
+tablify uses [`nobuild`](https://github.com/tsoding/nobuild), a header-only library
 for building programs with only a `C` compiler. Just run:
 
 ```
