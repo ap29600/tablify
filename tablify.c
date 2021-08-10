@@ -1,0 +1,160 @@
+#include <stdio.h>
+#include "stringview.h"
+
+#define MAX_FSIZE (1024 * 1024)
+#define MAX_LINES (1024)
+#define MAX_COLS (50)
+
+char *ignore = "/";
+
+typedef struct {
+  size_t lines;
+  size_t cols;
+} geometry;
+
+int good_separator(char c) { return c == '-' || c == '='; }
+int contains(char *s, char c);
+char separator_char(string_view s);
+char separator_line(string_view s);
+void print_padding(size_t width, char sep, FILE *stream);
+void print_entry(string_view s, size_t width, FILE *stream);
+string_view slurp_stream(FILE *stream);
+geometry get_table_geometry(string_view f, char delim);
+void read_table(geometry g, string_view f, string_view *table, size_t *width,
+                char *separators, char delim);
+void print_table(geometry g, string_view *table, size_t *width,
+                 char *separators, char delim, FILE *stream);
+
+int main() {
+
+  char delim = '|';
+  string_view f = slurp_stream(stdin);
+
+  // read the table once to get the dimensions
+  geometry g = get_table_geometry(f, delim);
+
+  // allocate a table for the SV's and an array for width info
+  string_view *table = calloc(g.lines * g.cols, sizeof(string_view));
+  size_t *width = calloc(g.cols, sizeof(size_t));
+  char *separators = calloc(g.lines, sizeof(char));
+
+  read_table(g, f, table, width, separators, delim);
+  print_table(g, table, width, separators, delim, stdout);
+  free(f.data);
+}
+
+int contains(char *s, char c) {
+  for (size_t i = 0; s[i] != '\0'; i++)
+    if (s[i] == c)
+      return 1;
+  return 0;
+}
+
+char separator_char(string_view s) {
+  for (size_t i = 0; i < s.len; i++) {
+    if (isspace(s.data[i]) || s.data[i] == '|' || contains(ignore, s.data[i]))
+      continue;
+    if (good_separator(s.data[i]))
+      return s.data[i];
+    else
+      return 0;
+  }
+  return 0;
+}
+
+char separator_line(string_view s) {
+  char sep = separator_char(s);
+  if (sep) {
+    // if every character is either whitespace or a good separator
+    for (size_t i = 0; i < s.len; i++)
+      if (!(isspace(s.data[i]) || good_separator(s.data[i]) ||
+            s.data[i] == '|' || contains(ignore, s.data[i])))
+        return 0;
+  }
+  return sep;
+}
+
+void print_padding(size_t width, char sep, FILE *stream) {
+  for (size_t i = 0; i < width; i++) {
+    fprintf(stream, "%c", sep);
+  }
+}
+
+void print_entry(string_view s, size_t width, FILE *stream) {
+  fprintf(stream, " " SV_FMT "", SV_ARG(s));
+  print_padding(width - s.len + 1, ' ', stream);
+}
+
+string_view slurp_stream(FILE *stream) {
+  string_view ret = {0};
+  size_t capacity = 0;
+  char c;
+
+  while (EOF != (c = getc(stream))) {
+    if (capacity < ret.len + 1) {
+      capacity = (capacity == 0) ? 1024 : capacity * 2;
+      ret.data = realloc(ret.data, capacity);
+      if (!ret.data)
+        return (string_view){0};
+    }
+
+    ret.data[ret.len++] = c;
+  }
+  return ret;
+}
+
+geometry get_table_geometry(string_view f, char delim) {
+  geometry ret = {0};
+
+  while (f.len > 0) {
+    string_view line = sv_split(&f, '\n');
+    ret.lines++;
+    size_t c = 0;
+
+    while (line.len > 0) {
+      sv_split(&line, delim);
+      c++; // ignore the part following the last delimiter
+    }
+    if (ret.cols < c)
+      ret.cols = c;
+  }
+
+  return ret;
+}
+
+void read_table(geometry g, string_view f, string_view *table, size_t *width,
+                char *separators, char delim) {
+  size_t l = 0, c;
+  while (f.len > 0) {
+    string_view line = sv_split(&f, '\n');
+    separators[l] = separator_line(line);
+    c = 0;
+    while (line.len > 0) {
+      table[l * g.cols + c] = sv_trim(sv_split(&line, delim));
+      if (width[c] < table[l * g.cols + c].len && !separators[l])
+        width[c] = table[l * g.cols + c].len;
+      c++;
+    }
+    l++;
+  }
+}
+
+void print_table(geometry g, string_view *table, size_t *width,
+                 char *separators, char delim, FILE *stream) {
+  for (size_t i = 0; i < g.lines; i++) {
+    if (separators[i]) {
+      print_entry(table[i * g.cols], width[0], stream);
+      fprintf(stream, "%c", delim);
+      for (size_t j = 1; j < g.cols; j++) {
+        print_padding(width[j] + 2, separators[i], stream);
+        printf("|");
+      }
+    } else {
+      for (size_t j = 0; j < g.cols; j++) {
+        print_entry(table[i * g.cols + j], width[j], stream);
+        fprintf(stream, "%c", delim);
+      }
+    }
+    printf("\n");
+  }
+}
