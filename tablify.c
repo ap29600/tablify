@@ -1,10 +1,6 @@
 #include <stdio.h>
 #include "stringview.h"
 
-#define MAX_FSIZE (1024 * 1024)
-#define MAX_LINES (1024)
-#define MAX_COLS (50)
-
 char *ignore = "/";
 
 typedef struct {
@@ -12,7 +8,7 @@ typedef struct {
   size_t cols;
 } geometry;
 
-int good_separator(char c) { return c == '-' || c == '='; }
+int good_separator(char c);
 int contains(char *s, char c);
 char separator_char(string_view s);
 char separator_line(string_view s);
@@ -33,14 +29,26 @@ int main() {
   // read the table once to get the dimensions
   geometry g = get_table_geometry(f, delim);
 
-  // allocate a table for the SV's and an array for width info
-  string_view *table = calloc(g.lines * g.cols, sizeof(string_view));
-  size_t *width = calloc(g.cols, sizeof(size_t));
-  char *separators = calloc(g.lines, sizeof(char));
+  // allocate a table for the SV's, an array for width info, and one for
+  // the separator positions.
+  string_view *table = calloc (
+		  g.lines * g.cols * sizeof(string_view) +  // table
+		  g.cols * sizeof(size_t) + 				// widths
+		  g.lines * sizeof(char),  					// separators
+		  1
+		  );
+  size_t *width = (size_t*) (table + g.lines * g.cols);
+  char *separators = (char*) (width + g.cols);
 
   read_table(g, f, table, width, separators, delim);
+
   print_table(g, table, width, separators, delim, stdout);
+
   free(f.data);
+}
+
+int good_separator(char c) { 
+	return c == '-' || c == '=';
 }
 
 int contains(char *s, char c) {
