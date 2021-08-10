@@ -187,15 +187,17 @@ void print_table(geometry g, string_view *table, size_t *width,
                  char *separators, char delim, FILE *stream) {
   for (size_t i = 0; i < g.lines; i++) {
     if (separators[i]) {
-      print_entry(table[i * g.cols], width[0] + 2 , stream, left_nopad);
+      print_entry(table[i * g.cols], width[0] == 0 ? 0 : width[0] + 1 , stream, left_nopad);
       fprintf(stream, "%c", delim);
       for (size_t j = 1; j < g.cols; j++) {
         pad(width[j] + 2, separators[i], stream);
         printf("|");
       }
     } else {
-      for (size_t j = 0; j < g.cols; j++) {
-        print_entry(table[i * g.cols + j], width[j] + 2, stream, j==0?left_nopad:center);
+      print_entry(table[i * g.cols], width[0] == 0 ? 0 : width[0] + 1, stream, left_nopad);
+      fprintf(stream, "%c", delim);
+      for (size_t j = 1; j < g.cols; j++) {
+        print_entry(table[i * g.cols + j], width[j] + 2, stream, center);
         fprintf(stream, "%c", delim);
       }
     }
