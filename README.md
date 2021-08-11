@@ -36,10 +36,10 @@ on tables in code comments.
 
 ## Todo:
 
-- [] support for multiline entries.
-- [] support for table alignment with `|---:|:----|---|` syntax.
-- [] clean up the parsing loop.
-- [] support some form of calculation similar to [minicel](https://github.com/tsoding/minicel)
+- [ ] support for multiline entries.
+- [ ] support for table alignment with `|---:|:----|---|` syntax.
+- [ ] clean up the parsing loop.
+- [ ] support some form of calculation similar to [minicel](https://github.com/tsoding/minicel)
      (maybe use python or js as the backend?).
 
 ## Motivation
