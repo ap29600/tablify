@@ -19,7 +19,6 @@ typedef enum {
   right_nopad,
 } align;
 
-int good_separator(char c);
 int contains(char *s, char c);
 int sv_len_utf_8(string_view s);
 char separator_line(string_view s);
@@ -33,13 +32,11 @@ void print_table(geometry g, string_view *table, size_t *width,
                  char *separators, FILE *stream);
 
 int main(int argc, char **argv) {
-
-  arg_string("-ignore", &ignore,
+  arg_string("--ignore", &ignore,
              "The characters to ignore when determining if a line should "
              "contain a separator.");
-  arg_string("-delim", &delim, "the table delimiter");
-  arg_string("-separators", &seps, "the line separator characters");
-
+  arg_string("--delim", &delim, "the table delimiter");
+  arg_string("--separators", &seps, "the line separator characters");
   arg_parse(argc, argv);
 
   string_view f = slurp_stream(stdin);
@@ -63,8 +60,6 @@ int main(int argc, char **argv) {
   free(f.data);
   free(table); // this will also free the other arrays
 }
-
-int good_separator(char c) { return c == '-' || c == '='; }
 
 int contains(char *s, char c) {
   for (size_t i = 0; s[i] != '\0'; i++)
