@@ -34,6 +34,14 @@ It's also useful that anything before the start of the table is left untouched
 (only preceding whitespace is removed), so that it is possible to use this tool
 on tables in code comments.
 
+## Todo:
+
+- [] support for multiline entries.
+- [] support for table alignment with `|---:|:----|---|` syntax.
+- [] clean up the parsing loop.
+- [] support some form of calculation similar to [minicel](https://github.com/tsoding/minicel)
+     (maybe use python or js as the backend?).
+
 ## Motivation
 
 This is an exercise in programming inspired by Tsoding's series on

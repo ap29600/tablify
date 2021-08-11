@@ -5,6 +5,7 @@
 char *ignore = "/";
 char *seps = "-=";
 char *delim = "|";
+char *input = "";
 
 typedef struct {
   size_t lines;
@@ -26,10 +27,8 @@ void pad(size_t width, char fill, FILE *stream);
 void print_entry(string_view s, size_t width, FILE *stream, align align);
 string_view slurp_stream(FILE *stream);
 geometry get_table_geometry(string_view f);
-void read_table(geometry g, string_view f, string_view *table, size_t *width,
-                char *separators);
-void print_table(geometry g, string_view *table, size_t *width,
-                 char *separators, FILE *stream);
+void read_table(geometry g, string_view f, string_view *table, size_t *width, char *separators);
+void print_table(geometry g, string_view *table, size_t *width, char *separators, FILE *stream);
 
 int main(int argc, char **argv) {
   arg_string("--ignore", &ignore,
@@ -37,9 +36,14 @@ int main(int argc, char **argv) {
              "contain a separator.");
   arg_string("--delim", &delim, "the table delimiter");
   arg_string("--separators", &seps, "the line separator characters");
+  arg_string("--input", &input, "the input file");
   arg_parse(argc, argv);
 
-  string_view f = slurp_stream(stdin);
+  FILE * stream = stdin;
+  if (strlen(input))
+      stream = fopen(input, "r");
+
+  string_view f = slurp_stream(stream);
 
   // read the table once to get the dimensions
   geometry g = get_table_geometry(f);
@@ -153,9 +157,9 @@ geometry get_table_geometry(string_view f) {
     string_view line = sv_split(&f, '\n');
     ret.lines++;
     size_t c = 0;
-
-    while (line.len > 0) {
+    while (line.len > 0) { 
       sv_split(&line, *delim);
+      line = sv_trim(line);
       c++; // ignore the part following the last delimiter
     }
     if (ret.cols < c)
@@ -177,6 +181,7 @@ void read_table(geometry g, string_view f, string_view *table, size_t *width,
       size_t utf8len = sv_len_utf_8(table[l * g.cols + c]);
       if (width[c] < utf8len && !separators[l])
         width[c] = utf8len;
+      line = sv_trim(line);
       c++;
     }
     l++;

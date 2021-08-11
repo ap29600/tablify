@@ -1,7 +1,7 @@
 #define NOBUILD_IMPLEMENTATION
 #include "nobuild.h"
 
-#define CFLAGS "-Wall", "-Wextra", "-std=c11", "-pedantic", "-Os"
+#define CFLAGS "-Wall", "-Wextra", "-std=c11", "-pedantic", "-O3"
 #define LFLAGS "-x", "c", "-fPIC", "-c"
 
 int contains(int size, char **haystack, char *needle) {
@@ -27,7 +27,10 @@ int main(int argc, char **argv) {
 
   if (argc > 1 && contains(argc - 1, argv + 1, "test")) {
     // run the program on input.txt
-    CMD("sh", "-c", "cat ./input.txt | ./tablify");
+    INFO("test input:");
+    CMD("cat", "input.txt");
+    INFO("test output:");
+    CMD("./tablify", "--input", "input.txt");
   }
 
   return 0;
