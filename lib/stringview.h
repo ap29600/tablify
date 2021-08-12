@@ -20,8 +20,9 @@ string_view sv_str(char *data);
 string_view sv_nstr(char *data, size_t len);
 string_view sv_trim(string_view sv);
 string_view sv_split(string_view *sv, char delim);
+string_view sv_split_escaped(string_view *sv, char delim);
 int sv_cmp(string_view a, string_view b);
-int sv_starts_with(string_view a, char* b);
+int sv_starts_with(string_view a, char *b);
 
 #endif // STRINGVIEW_H_
 
@@ -49,6 +50,36 @@ string_view sv_split(string_view *sv, char delim) {
   char *data = sv->data;
   size_t len;
   while (sv->data[0] != delim && sv->len > 0) {
+    sv->data++;
+    sv->len--;
+  }
+  if (sv->len > 0) { // get rid of the delimiter
+    sv->data++;
+    sv->len--;
+    len = sv->data - data - 1;
+  } else {
+    len = sv->data - data;
+  }
+  return (string_view){.len = len, .data = data};
+}
+
+string_view sv_split_escaped(string_view *sv, char delim) {
+  char *data = sv->data;
+  char quote = 0;
+  int escaped_char = 0;
+  size_t len;
+  while ((*sv->data != delim || quote || escaped_char) && sv->len > 0) {
+    if (escaped_char)
+      escaped_char = 0;
+    else {
+      if (quote) {
+        if (*sv->data == quote)
+          quote = 0;
+      } else if (*sv->data == '"' || *sv->data == '`') {
+        quote = *sv->data;
+      }
+      if (*sv->data == '\\') escaped_char = 1;
+    }
     sv->data++;
     sv->len--;
   }
