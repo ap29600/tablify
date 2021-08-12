@@ -13,13 +13,13 @@ Geo read_table(Geo g, Sv f, Sv *table, size_t *widths, Align *align, char *sep) 
   size_t l = 0, c;
 
   while (f.len > 0) {
-    Sv line = sv_split(&f, '\n');
+    Sv line = sv_split_escaped(&f, '\n');
     ret.lines++;
     if (sep)
       sep[l] = separator_line(line);
     c = 0;
     while (line.len > 0) {
-      Sv entry = sv_trim(sv_split(&line, *delim));
+      Sv entry = sv_trim(sv_split_escaped(&line, *delim));
       if (table && widths && sep) {
 
         table[l * g.cols + c] = entry;
