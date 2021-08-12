@@ -37,8 +37,6 @@ Geo read_table(Geo g, Sv f, Sv *table, size_t *width, Align *align, char *sep);
 void print_table(Geo g, Sv *table, size_t *width, Align *align,
                  char *separators, FILE *stream);
 
-int sv_len_utf_8(Sv s);
-Sv sv_slurp_stream(FILE *stream);
 
 #endif // TABLIFY_H_
 
@@ -85,14 +83,6 @@ int contains(const char *s, char c) {
     if (s[i] == c)
       return 1;
   return 0;
-}
-
-int sv_len_utf_8(Sv s) {
-  int ret = 0;
-  for (; s.len > 0; s.len--)
-    if (((*s.data++) & 0xc0) != 0x80)
-      ret++;
-  return ret;
 }
 
 // return the separator character if the line is supposed to be a
@@ -145,35 +135,6 @@ void print_entry(Sv s, size_t width, FILE *stream, Align align) {
   pad(pad_left, ' ', stream);
   fprintf(stream, "" SV_FMT "", SV_ARG(s));
   pad(pad_right, ' ', stream);
-}
-
-Sv sv_slurp_stream(FILE *stream) {
-  Sv ret = {0};
-  size_t capacity = 0;
-  if (isatty(fileno(stream))) {
-    char c;
-    while (EOF != (c = getc(stream))) {
-      if (capacity < ret.len + 1) {
-        capacity = (capacity == 0) ? 1024 : capacity * 2;
-        ret.data = (char *)realloc(ret.data, capacity);
-        if (!ret.data)
-          return (Sv){0};
-      }
-      ret.data[ret.len++] = c;
-    }
-  } else {
-    if (fseek(stream, 0, SEEK_END) < 0)
-      printf("Error: %s\n", strerror(ferror(stream)));
-
-    ret.len = ftell(stream);
-
-    if (fseek(stream, 0, SEEK_SET) < 0)
-      printf("Error: %s\n", strerror(ferror(stream)));
-
-    ret.data = (char *)realloc(ret.data, ret.len);
-    fread(ret.data, ret.len, 1, stream);
-  }
-  return ret;
 }
 
 #endif // TABLIFY_IMPLEMENTATION

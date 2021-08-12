@@ -1,8 +1,12 @@
+#ifndef STRINGVIEW_H_
+#define STRINGVIEW_H_
+#define _XOPEN_SOURCE 700
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef STRINGVIEW_H_
-#define STRINGVIEW_H_
+#include <stdio.h>
+#include <unistd.h>
 
 #define SV_FMT "%.*s"
 #define SV_ARG(sv) (int)(sv).len, (sv).data
@@ -16,6 +20,8 @@ typedef struct {
 #define SV_CONST(string)                                                       \
   (string_view) { .len = strlen((string)), .data = (string) }
 
+int sv_len_utf_8(string_view s);
+string_view sv_slurp_stream(FILE *stream);
 string_view sv_str(char *data);
 string_view sv_nstr(char *data, size_t len);
 string_view sv_trim(string_view sv);
@@ -99,6 +105,43 @@ int sv_cmp(string_view a, string_view b) {
 
 int sv_starts_with(string_view a, char *b) {
   return !strncmp(a.data, b, strlen(b));
+}
+
+string_view sv_slurp_stream(FILE *stream) {
+  string_view ret = {0};
+  size_t capacity = 0;
+  if (isatty(fileno(stream))) {
+    char c;
+    while (EOF != (c = getc(stream))) {
+      if (capacity < ret.len + 1) {
+        capacity = (capacity == 0) ? 1024 : capacity * 2;
+        ret.data = (char *)realloc(ret.data, capacity);
+        if (!ret.data)
+          return (string_view){0};
+      }
+      ret.data[ret.len++] = c;
+    }
+  } else {
+    if (fseek(stream, 0, SEEK_END) < 0)
+      printf("Error: %s\n", strerror(ferror(stream)));
+
+    ret.len = ftell(stream);
+
+    if (fseek(stream, 0, SEEK_SET) < 0)
+      printf("Error: %s\n", strerror(ferror(stream)));
+
+    ret.data = (char *)malloc(ret.len);
+    fread(ret.data, ret.len, 1, stream);
+  }
+  return ret;
+}
+
+int sv_len_utf_8(string_view s) {
+  int ret = 0;
+  for (; s.len > 0; s.len--)
+    if (((*s.data++) & 0xc0) != 0x80)
+      ret++;
+  return ret;
 }
 
 #undef STRINGVIEW_IMPLEMENTATION
