@@ -66,3 +66,17 @@ where to put the executable with the `BINARY_PATH` variable.
 ```
 $ make clean install
 ```
+
+## Usage
+(A random excuse to insert a table in this readme)
+
+The program supports a few CLI options:
+
+|           Flag |  Type  | Description                                                                                                    |
+|---------------:|--------|:---------------------------------------------------------------------------------------------------------------|
+|      `--input` |  path  | The input file to read the table from. If no file is provided, input is read from `stdin`.                     |
+|      `--delim` |  char  | The character that separates columns. Default is `'|'`.                                                        |
+|     `--ignore` | string | characters that are allowed to be on the separator line without invalidating it. Defaults are `'\'` and `':'`. |
+| `--separators` | string | characters that can be used to construct a separator line. Defaults are `'-'` and `'='`.                       |
+
+
