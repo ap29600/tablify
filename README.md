@@ -37,7 +37,9 @@ on tables in code comments.
 ## Todo:
 
 - [ ] support for multiline entries.
-- [ ] support for table alignment with `|---:|:----|---|` syntax.
+- [X] support for table alignment with `|---:|:----|---|` syntax.
+    - [X] basic support
+    - [ ] support for multiple alignments in the same column
 - [ ] clean up the parsing loop.
 - [ ] support some form of calculation similar to [minicel](https://github.com/tsoding/minicel)
      (maybe use python or js as the backend?).
@@ -56,13 +58,11 @@ It would be nice to make a few of these tools that add more of org's functionali
 to make markdown on vim as appealing as org-mode on emacs (all while keeping the 
 complexity in standalone executables).
 
-## build system
+## Quick start
 
-Tablify uses [`nobuild`](https://github.com/tsoding/nobuild), a header-only
-library for building programs with only a `C` compiler. Just run:
+The `install` recipe will build the program and install it into `~/.local/bin`. You can specify
+where to put the executable with the `BINARY_PATH` variable.
 
 ```
-$ cc nobuild.c -o nobuild
-$ ./nobuild libs
+$ make clean install
 ```
-

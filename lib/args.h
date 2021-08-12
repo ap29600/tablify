@@ -6,12 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void arg_int(const char *name, int *value, const char *def);
-static void arg_float(const char *name, float *value, const char *def);
-static void arg_string(const char *name, char **value, const char *def);
+void arg_int(const char *name, int *value, const char *def);
+void arg_float(const char *name, float *value, const char *def);
+void arg_string(const char *name, const char ** value, const char *def);
 
-static int arg_parse(int argc, char **argv);
-static void arg_print_usage(FILE *stream);
+int arg_parse(int argc, char **argv);
+void arg_print_usage(FILE *stream);
 
 #endif // ARGS_H_
 
@@ -33,7 +33,7 @@ enum arg_h_type {
 
 union arg_h_union {
   int *Int;
-  char **String;
+  const char **String;
   float *Float;
 };
 
@@ -49,7 +49,7 @@ static struct {
   size_t num;
 } args;
 
-static inline void arg_int(const char *name, int *value, const char *def) {
+inline void arg_int(const char *name, int *value, const char *def) {
   if (args.num + 1 >= ARGS_COUNT) {
     fprintf(stderr, "Too many arguments were declared\n");
     exit(0);
@@ -63,7 +63,7 @@ static inline void arg_int(const char *name, int *value, const char *def) {
   args.num++;
 }
 
-static inline void arg_float(const char *name, float *value, const char *def) {
+inline void arg_float(const char *name, float *value, const char *def) {
   if (args.num + 1 >= ARGS_COUNT) {
     fprintf(stderr, "Too many arguments were declared\n");
     exit(0);
@@ -77,7 +77,7 @@ static inline void arg_float(const char *name, float *value, const char *def) {
   args.num++;
 }
 
-static inline void arg_string(const char *name, char **value, const char *def) {
+inline void arg_string(const char *name, const char **value, const char *def) {
   if (args.num + 1 >= ARGS_COUNT) {
     fprintf(stderr, "Too many arguments were declared\n");
     exit(0);
@@ -139,7 +139,7 @@ static inline int is_eq_arg(const char *name, const char *buf) {
   return buf[i] == '=' ? 1 : 0;
 }
 
-static inline int arg_parse(int argc, char **argv) {
+inline int arg_parse(int argc, char **argv) {
 
   enum { parsed, available } state[argc];
   for (int i = 1; i < argc; i++)
@@ -190,7 +190,7 @@ static inline int arg_parse(int argc, char **argv) {
   return 0;
 }
 
-static inline void arg_print_usage(FILE *stream) {
+inline void arg_print_usage(FILE *stream) {
   fprintf(stream, "Usage:\n");
   for (size_t i = 0; i < args.num; i++) {
     Arg a = args.a[i];

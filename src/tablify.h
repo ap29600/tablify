@@ -1,18 +1,16 @@
 #ifndef TABLIFY_H_
 #define TABLIFY_H_
-#define _XOPEN_SOURCE 700
 
-#include "string.h"
-#include "stringview.h"
+#include "../lib/stringview.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-static char *ignore = "/";
-static char *seps = "-=";
-static char *delim = "|";
-static char *input = NULL;
+static const char *ignore = "/:";
+static const char *seps = "-=";
+static const char *delim = "|";
+static const char *input = NULL;
 
 typedef struct {
   size_t lines;
@@ -29,13 +27,15 @@ typedef enum {
 
 typedef string_view Sv;
 
-int contains(char *s, char c);
+Align get_align(Sv s);
+int contains(const char *s, char c);
 char separator_line(Sv s);
 void pad(size_t width, char fill, FILE *stream);
+void print_separator(size_t width, char fill, Align align, FILE *stream);
 void print_entry(Sv s, size_t width, FILE *stream, Align align);
-Geo read_table(Geo g, Sv f, Sv *table, size_t *width, char *separators);
-void print_table(Geo g, Sv *table, size_t *width, char *separators,
-                 FILE *stream);
+Geo read_table(Geo g, Sv f, Sv *table, size_t *width, Align *align, char *sep);
+void print_table(Geo g, Sv *table, size_t *width, Align *align,
+                 char *separators, FILE *stream);
 
 int sv_len_utf_8(Sv s);
 Sv sv_slurp_stream(FILE *stream);
@@ -45,7 +45,42 @@ Sv sv_slurp_stream(FILE *stream);
 #ifdef TABLIFY_IMPLEMENTATION
 #undef TABLIFY_IMPLEMENTATION
 
-int contains(char *s, char c) {
+void print_separator(size_t width, char fill, Align align,
+                            FILE *stream) {
+  size_t sep_width = width;
+  switch (align) {
+  case LEFT:
+  case LEFT_H:
+    sep_width -= 1;
+    fputc(':', stream);
+    break;
+  case RIGHT:
+  case RIGHT_H:
+    sep_width -= 1;
+    break;
+  case CENTER:
+    break;
+  }
+  pad(sep_width, fill, stream);
+
+  if (align == RIGHT || align == RIGHT_H)
+    fputc(':', stream);
+}
+
+
+Align get_align(Sv s) {
+  if (s.data[0] == ':') {
+    if (s.data[s.len - 1] == ':')
+      return CENTER;
+    else
+      return LEFT;
+  } else if (s.data[s.len - 1] == ':')
+    return RIGHT;
+  else
+    return CENTER;
+}
+
+int contains(const char *s, char c) {
   for (size_t i = 0; s[i] != '\0'; i++)
     if (s[i] == c)
       return 1;
@@ -111,7 +146,6 @@ void print_entry(Sv s, size_t width, FILE *stream, Align align) {
   fprintf(stream, "" SV_FMT "", SV_ARG(s));
   pad(pad_right, ' ', stream);
 }
-
 
 Sv sv_slurp_stream(FILE *stream) {
   Sv ret = {0};

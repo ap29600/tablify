@@ -1,4 +1,4 @@
-|entries get centered|with| correct unicode width |
-|-
-|| al | ììòòààì èé
-|3.14
+| entries get centered|with |correct unicode width |
+|:-||-:
+||al| ììòòààì èé
+| 3.14

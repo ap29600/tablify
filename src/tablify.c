@@ -1,11 +1,11 @@
+#define _XOPEN_SOURCE 700
 
-#include "args.h"
-#include "stringview.h"
+#include <stdio.h>
+#include "../lib/args.h"
+#include "../lib/stringview.h"
 #define TABLIFY_IMPLEMENTATION
 #include "tablify.h"
-
 #include "table.c"
-#include <stdio.h>
 
 int main(int argc, char **argv) {
   arg_string("--ignore", &ignore,
@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   Sv f = sv_slurp_stream(stream);
 
   // read the table once to get the dimensions
-  Geo g = read_table((Geo){0}, f, 0, 0, 0);
+  Geo g = read_table((Geo){0}, f, 0, 0, 0, 0);
 
   // allocate a table for the SV's, an array for width info, and one for
   // the separator positions.
@@ -34,14 +34,16 @@ int main(int argc, char **argv) {
   Sv table[g.lines * g.cols];
   size_t width[g.cols];
   char sep[g.lines];
+  Align align[g.cols];
 
   memset(table, 0, sizeof(table));
   memset(width, 0, sizeof(width));
   memset(sep, 0, sizeof(sep));
+  memset(align, 0, sizeof(align));
 
-  read_table(g, f, table, width, sep);
+  read_table(g, f, table, width, align, sep);
 
-  print_table(g, table, width, sep, stdout);
+  print_table(g, table, width, align, sep, stdout);
 
   free(f.data);
 }

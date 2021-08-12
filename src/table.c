@@ -8,7 +8,7 @@
 // `sep` contains a char for each row, indicating if that row should
 // be filled with a separator, and what separator to use.
 
-Geo read_table(Geo g, Sv f, Sv *table, size_t *widths, char *sep) {
+Geo read_table(Geo g, Sv f, Sv *table, size_t *widths, Align *align, char *sep) {
   Geo ret = {0};
   size_t l = 0, c;
 
@@ -21,10 +21,17 @@ Geo read_table(Geo g, Sv f, Sv *table, size_t *widths, char *sep) {
     while (line.len > 0) {
       Sv entry = sv_trim(sv_split(&line, *delim));
       if (table && widths && sep) {
+
         table[l * g.cols + c] = entry;
+
         size_t utf8len = sv_len_utf_8(entry);
         if (widths[c] < utf8len && !sep[l])
           widths[c] = utf8len;
+        
+        if (sep[l]) {
+            Align a = get_align(entry);
+            if (a) align[c] = a;
+        }
       }
       line = sv_trim(line);
       c++;
@@ -36,14 +43,14 @@ Geo read_table(Geo g, Sv f, Sv *table, size_t *widths, char *sep) {
   return ret;
 }
 
-void print_table(Geo g, Sv *table, size_t *widths, char *sep, FILE *stream) {
+void print_table(Geo g, Sv *table, size_t *widths, Align *align, char *sep, FILE *stream) {
   for (size_t i = 0; i < g.lines; i++) {
     if (sep[i]) {
       print_entry(table[i * g.cols], widths[0] == 0 ? 0 : widths[0] + 1, stream,
                   LEFT_H);
       fprintf(stream, "%c", *delim);
       for (size_t j = 1; j < g.cols; j++) {
-        pad(widths[j] + 2, sep[i], stream);
+        print_separator(widths[j] + 2, sep[i], align[j], stream);
         printf("%c", *delim);
       }
     } else {
@@ -51,7 +58,7 @@ void print_table(Geo g, Sv *table, size_t *widths, char *sep, FILE *stream) {
                   LEFT_H);
       fprintf(stream, "%c", *delim);
       for (size_t j = 1; j < g.cols; j++) {
-        print_entry(table[i * g.cols + j], widths[j] + 2, stream, CENTER);
+        print_entry(table[i * g.cols + j], widths[j] + 2, stream, align[j]);
         fprintf(stream, "%c", *delim);
       }
     }
