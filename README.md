@@ -76,7 +76,7 @@ The program supports a few CLI options:
 |---------------:|--------|:---------------------------------------------------------------------------------------------------------------|
 |      `--input` |  path  | The input file to read the table from. If no file is provided, input is read from `stdin`.                     |
 |      `--delim` |  char  | The character that separates columns. Default is `'|'`.                                                        |
-|     `--ignore` | string | characters that are allowed to be on the separator line without invalidating it. Defaults are `'\'` and `':'`. |
-| `--separators` | string | characters that can be used to construct a separator line. Defaults are `'-'` and `'='`.                       |
+|     `--ignore` | string | Characters that are allowed to be on the separator line without invalidating it. Defaults are `'/'` and `':'`. |
+| `--separators` | string | Characters that can be used to construct a separator line. Defaults are `'-'` and `'='`.                       |
 
 
