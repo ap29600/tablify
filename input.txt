@@ -1,4 +1,6 @@
 | entries get centered|with |correct unicode width |
 |:-||-:
-| "\"  | " |al| ììòòààì èé
+| =B1 *A2 | 2| ììòòààì èé
 | 3.14
+| =m.sin(A1)
+| adls

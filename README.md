@@ -1,6 +1,6 @@
 # Tablify
 
-## A simple table formatter
+## A (not so) simple table formatter
 
 The idea is to have a simple tool to get a badly written markdown-style table:
 
@@ -41,8 +41,10 @@ on tables in code comments.
     - [X] basic support
     - [ ] support for multiple alignments in the same column
 - [ ] clean up the parsing loop.
-- [ ] support some form of calculation similar to [minicel](https://github.com/tsoding/minicel)
-     (maybe use python or js as the backend?).
+- [X] Add support for calculations in python.
+    - [ ] find a way to stitch the result back into the table, without
+          sacrificing stability (running the program on its own output 
+          should not change anything).
 
 ## Motivation
 
@@ -74,9 +76,12 @@ The program supports a few CLI options:
 
 |           Flag |  Type  | Description                                                                                                    |
 |---------------:|--------|:---------------------------------------------------------------------------------------------------------------|
-|      `--input` |  path  | The input file to read the table from. If no file is provided, input is read from `stdin`.                     |
-|      `--delim` |  char  | The character that separates columns. Default is `'\|'`.                                                        |
-|     `--ignore` | string | Characters that are allowed to be on the separator line without invalidating it. Defaults are `'/'` and `':'`. |
-| `--separators` | string | Characters that can be used to construct a separator line. Defaults are `'-'` and `'='`.                       |
+|      `--delim` |  Char  | The character that separates columns. Default is `'\|'`.                                                       |
+|    `--compute` |  Int   | Whether or not to compute the python expressions in the cells. Default is `0`.                                 |
+|      `--input` | String | The input file to read the table from. If no file is provided, input is read from `stdin`.                     |
+|     `--ignore` | String | Characters that are allowed to be on the separator line without invalidating it. Defaults are `'/'` and `':'`. |
+| `--separators` | String | Characters that can be used to construct a separator line. Defaults are `'-'` and `'='`.                       |
+
+
 
 

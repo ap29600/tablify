@@ -1,8 +1,10 @@
-#include <stdio.h>
+#define _XOPEN_SOURCE 700
 #include "../lib/args.h"
 #include "../lib/stringview.h"
+#include <stdio.h>
 #define TABLIFY_IMPLEMENTATION
 #include "tablify.h"
+
 #include "table.c"
 
 int main(int argc, char **argv) {
@@ -12,36 +14,73 @@ int main(int argc, char **argv) {
   arg_string("--delim", &delim, "the table delimiter");
   arg_string("--separators", &seps, "the line separator characters");
   arg_string("--input", &input, "the input file");
-  arg_parse(argc, argv);
+  int help = 0;
+  arg_int("--help", &help, "print this help message");
+  arg_int("--compute", &compute,
+          "perform computations in cells that start with '='");
+  if (arg_parse(argc, argv))
+    return 1;
 
-  FILE *stream = input ? fopen(input, "r") : stdin;
+  if (help) {
+    arg_print_usage(stdout);
+    return 0;
+  }
 
-  Sv f = sv_slurp_stream(stream);
+  Sv f;
+  if (input) {
+    FILE *stream = fopen(input, "r");
+    f = sv_slurp_file(stream);
+    fclose(stream);
+  } else {
+    f = sv_slurp_stream(stdin);
+  }
 
-  // read the table once to get the dimensions
-  Geo g = read_table((Geo){0}, f, 0, 0, 0, 0);
+  // read the table once to get the dimensions.
+  // since all the global pointers are NULL
+  // nothing is written.
+  g = read_table(f);
 
-  // allocate a table for the SV's, an array for width info, and one for
-  // the separator positions.
-
-  if (!g.cols || !g.lines) {
+  if (!g.x || !g.y) {
     free(f.data);
     return 0;
   }
 
-  Sv table[g.lines * g.cols];
-  size_t width[g.cols];
-  char sep[g.lines];
-  Align align[g.cols];
+  // allocate a table for the SV's, an array for width info, and one for
+  // the separator positions.
+  table = calloc(g.x * g.y, sizeof(Cell));
+  width = calloc(g.x, sizeof(size_t));
+  align = calloc(g.x, sizeof(Align));
+  sep = calloc(g.y, 1);
 
-  memset(table, 0, sizeof(table));
-  memset(width, 0, sizeof(width));
-  memset(sep, 0, sizeof(sep));
-  memset(align, 0, sizeof(align));
+  // read the table again, this time saving the cells.
+  read_table(f);
 
-  read_table(g, f, table, width, align, sep);
+  // dump_deps(g, table);
 
-  print_table(g, table, width, align, sep, stdout);
+  print_table(stdout);
 
+  if (compute) {
+    FILE *py = fopen("py.txt", "w");
+    print_computation_steps(py);
+    fclose(py);
+
+    FILE *p_out = popen("python py.txt", "r");
+
+    if (!p_out) {
+      printf("failure to get pipe\n");
+    }
+
+    string_view out = sv_slurp_stream(p_out);
+
+    printf(SV_FMT "\n", SV_ARG(out));
+
+    pclose(p_out);
+  }
+
+  // cleanup
+  free(table);
+  free(width);
+  free(align);
+  free(sep);
   free(f.data);
 }

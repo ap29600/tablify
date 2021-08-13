@@ -3,9 +3,9 @@
 #define _XOPEN_SOURCE 700
 
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <unistd.h>
 
 #define SV_FMT "%.*s"
@@ -22,6 +22,7 @@ typedef struct {
 
 int sv_len_utf_8(string_view s);
 string_view sv_slurp_stream(FILE *stream);
+string_view sv_slurp_file(FILE *stream);
 string_view sv_str(char *data);
 string_view sv_nstr(char *data, size_t len);
 string_view sv_trim(string_view sv);
@@ -84,7 +85,8 @@ string_view sv_split_escaped(string_view *sv, char delim) {
       } else if (*sv->data == '"' || *sv->data == '`') {
         quote = *sv->data;
       }
-      if (*sv->data == '\\') escaped_char = 1;
+      if (*sv->data == '\\')
+        escaped_char = 1;
     }
     sv->data++;
     sv->len--;
@@ -110,29 +112,31 @@ int sv_starts_with(string_view a, char *b) {
 string_view sv_slurp_stream(FILE *stream) {
   string_view ret = {0};
   size_t capacity = 0;
-  if (isatty(fileno(stream))) {
-    char c;
-    while (EOF != (c = getc(stream))) {
-      if (capacity < ret.len + 1) {
-        capacity = (capacity == 0) ? 1024 : capacity * 2;
-        ret.data = (char *)realloc(ret.data, capacity);
-        if (!ret.data)
-          return (string_view){0};
-      }
-      ret.data[ret.len++] = c;
+  char c;
+  while (EOF != (c = getc(stream))) {
+    if (capacity < ret.len + 1) {
+      capacity = (capacity == 0) ? 1024 : capacity * 2;
+      ret.data = (char *)realloc(ret.data, capacity);
+      if (!ret.data)
+        return (string_view){0};
     }
-  } else {
-    if (fseek(stream, 0, SEEK_END) < 0)
-      printf("Error: %s\n", strerror(ferror(stream)));
-
-    ret.len = ftell(stream);
-
-    if (fseek(stream, 0, SEEK_SET) < 0)
-      printf("Error: %s\n", strerror(ferror(stream)));
-
-    ret.data = (char *)malloc(ret.len);
-    fread(ret.data, ret.len, 1, stream);
+    ret.data[ret.len++] = c;
   }
+  return ret;
+}
+
+string_view sv_slurp_file(FILE *stream) {
+  string_view ret = {0};
+  if (fseek(stream, 0, SEEK_END) < 0)
+    printf("Error: %s\n", strerror(ferror(stream)));
+
+  ret.len = ftell(stream);
+
+  if (fseek(stream, 0, SEEK_SET) < 0)
+    printf("Error: %s\n", strerror(ferror(stream)));
+
+  ret.data = (char *)malloc(ret.len);
+  fread(ret.data, ret.len, 1, stream);
   return ret;
 }
 
