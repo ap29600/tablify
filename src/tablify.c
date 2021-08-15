@@ -57,7 +57,8 @@ int main(int argc, char **argv) {
   read_table(f);
 
   // dump_deps(g, table);
-
+    
+  VecSV long_entries = {0};
   if (compute) {
     FILE *py = fopen("py.txt", "w");
     print_computation_steps(py);
@@ -72,7 +73,7 @@ int main(int argc, char **argv) {
     string_view out = sv_slurp_stream(p_out);
     pclose(p_out);
 
-    splice_results(out);
+    long_entries = splice_results(out);
 
     // free(out.data);
   }
@@ -83,6 +84,8 @@ int main(int argc, char **argv) {
   else
     output = stdout;
   print_table(output);
+  print_long_entries(long_entries, output);
+
 
   // cleanup
   free(table);

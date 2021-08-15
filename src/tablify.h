@@ -14,6 +14,7 @@ static const char *delim = "|";
 static const char *input = NULL;
 static const char *out_file = NULL;
 static int compute = 0;
+static int max_result_len = 20;
 
 typedef enum {
   CENTER = 0,
@@ -32,13 +33,13 @@ typedef struct {
   string_view *data;
   size_t count;
   size_t cap;
-} Deps;
+} VecSV;
 
 enum eval_state { NOT_VISITED, PENDING, COMPLETE };
 
 typedef struct {
-  string_view sv;
-  Deps deps;
+  string_view content;
+  VecSV deps;
   enum eval_state state;
 } Cell;
 
@@ -53,14 +54,14 @@ static Tuple g = {0}; // table geometry
 static int contains(const char *s, char c);
 
 // index conversion
-static char col_of(size_t c);
-static int row_of(size_t r);
-static Tuple pos_of(string_view name);
+static char position_to_label_col(size_t c);
+static int position_to_label_row(size_t r);
+static Tuple label_to_position(string_view name);
 
 // table processing
 static char separator_line(Sv s);
 static Align get_align(Sv s);
-static Deps get_deps(string_view sv);
+static VecSV get_deps(string_view sv);
 static void dump_all_dependencies();
 
 static Tuple read_table(Sv f);
@@ -74,7 +75,7 @@ static void print_computation_statement(char col, int row, Cell *c,
                                         FILE *stream);
 static void print_computation_steps(FILE *stream);
 static int try_resolve(Tuple pos, FILE *stream);
-static void splice_results(string_view sv);
+static VecSV splice_results(string_view sv);
 
 static void print_sep(char fill, size_t width, Align align, FILE *stream) {
   size_t sep_width = width;
@@ -202,8 +203,8 @@ static string_view next_ref(string_view sv) {
   return (string_view){0};
 }
 
-static Deps get_deps(string_view sv) {
-  Deps deps = {
+static VecSV get_deps(string_view sv) {
+  VecSV deps = {
       .data = (string_view *)malloc(8 * sizeof(string_view)),
       .count = 0,
   };
@@ -237,8 +238,8 @@ static Deps get_deps(string_view sv) {
   return deps;
 }
 
-static char col_of(size_t c) { return c - 1 + 'A'; }
-static int row_of(size_t r) {
+static char position_to_label_col(size_t c) { return c - 1 + 'A'; }
+static int position_to_label_row(size_t r) {
   int ret = 0;
   for (size_t i = 0; i < r; i++) {
     if (!sep[i])
@@ -247,7 +248,7 @@ static int row_of(size_t r) {
   return ret;
 }
 
-static Tuple pos_of(string_view name) {
+static Tuple label_to_position(string_view name) {
   Tuple ret = {0};
   ret.x = name.data[0] - 'A' + 1;
   size_t y = 0;
@@ -267,21 +268,25 @@ static Tuple pos_of(string_view name) {
 static void print_computation_statement(char col, int row, Cell *c,
                                         FILE *stream) {
   if (!c) {
-    fprintf(stream, "%c%d = 0 \n", col, row);
+    fprintf(stderr, "Attempting to print a nonexistent cell: %c%d\n", col, row);
+    return;
   }
-  // print to file
-  if (c->sv.len && c->sv.data[0] == '=') // print expression
-    fprintf(stream, "%c%d " SV_FMT "\n", col, row, SV_ARG(c->sv));
-  else if (c->sv.len) {
-    fprintf(stream, "%c%d =" SV_FMT "\n", col, row, SV_ARG(c->sv));
+
+  if (c->content.len && c->content.data[0] == '=')
+    // cell has an expression as its content
+    fprintf(stream, "%c%d " SV_FMT "\n", col, row, SV_ARG(c->content));
+  else if (c->content.len) {
+    // cell has a value as its content
+    fprintf(stream, "%c%d =" SV_FMT "\n", col, row, SV_ARG(c->content));
   } else {
+    // cell is empty.
     fprintf(stream, "%c%d = 0 \n", col, row);
   }
 
   fprintf(stream, "print( \"%c%d =\" + str(%c%d) )\n", col, row, col, row);
 }
 
-static void print_deps(Deps v) {
+static void print_deps(VecSV v) {
   for (size_t i = 0; i < v.count; i++)
     printf("  ref{ " SV_FMT " }\n", SV_ARG(v.data[i]));
 }
@@ -305,8 +310,8 @@ static int try_resolve(Tuple pos, FILE *stream) {
     return 0;
   }
   Cell *c = &table[pos.y * g.x + pos.x];
-  char col = col_of(pos.x);
-  int row = row_of(pos.y);
+  char col = position_to_label_col(pos.x);
+  int row = position_to_label_row(pos.y);
 
   switch (c->state) {
   case NOT_VISITED:
@@ -314,7 +319,7 @@ static int try_resolve(Tuple pos, FILE *stream) {
 
     // iterate over dependencies
     for (size_t i = 0; i < c->deps.count; i++) {
-      Tuple p = pos_of(c->deps.data[i]);
+      Tuple p = label_to_position(c->deps.data[i]);
       if (try_resolve(p, stream))
         return 1;
     }
@@ -336,7 +341,8 @@ static void print_computation_steps(FILE *stream) {
   fprintf(stream, "import math as m\n");
   for (size_t x = 1; x < g.x; x++)
     for (size_t y = 0; y < g.y; y++) {
-      if (!table[y * g.x + x].sv.data || table[y * g.x + x].sv.data[0] != '=')
+      if (!table[y * g.x + x].content.data ||
+          table[y * g.x + x].content.data[0] != '=')
         continue;
       if (try_resolve((Tuple){.x = x, .y = y}, stream)) {
         printf("dependency cycle detected\n");
@@ -345,32 +351,52 @@ static void print_computation_steps(FILE *stream) {
     }
 }
 
-static void splice_results(string_view sv) {
+static VecSV splice_results(string_view sv) {
+  VecSV long_svs = {0};
   while (sv.len > 0) {
     string_view line = sv_split_escaped(&sv, '\n');
     string_view cell = sv_trim(sv_split(&line, '='));
     line = sv_trim(line);
 
-    Tuple pos = pos_of(cell);
-    string_view prev_content = table[pos.y * g.x + pos.x].sv;
+    if (line.len > max_result_len) {
+      if (long_svs.count + 1 >= long_svs.cap) {
+        long_svs.cap = long_svs.cap * 2 + 1;
+        long_svs.data = (string_view *)realloc(long_svs.data, long_svs.cap);
+      }
+      long_svs.data[long_svs.count] = line;
+      line.data = (char *)malloc(64);
+      line.len = sprintf(line.data, "<%zu>", ++long_svs.count);
+    };
+
+    Tuple pos = label_to_position(cell);
+    string_view prev_content = table[pos.y * g.x + pos.x].content;
 
     // only put results back in expressions that start with '='
     if (prev_content.data[0] != '=')
       continue;
-    prev_content = sv_trim ( sv_split_escaped (&prev_content, '#') );
+    prev_content = sv_trim(sv_split_escaped(&prev_content, '#'));
 
-    string_view spliced = {.len = prev_content.len + line.len + 3, // 3 is for " # " preceding the result
+    string_view spliced = {.len = prev_content.len + line.len +
+                                  3, // 3 is for " # " preceding the result
                            .data = NULL};
-    spliced.data = (char *)malloc(spliced.len + 1); // +1 for the null terminator
+    spliced.data =
+        (char *)malloc(spliced.len + 1); // +1 for the null terminator
     if (!spliced.data) {
       fprintf(stderr, "Allocation failed\n");
       exit(1);
     }
     sprintf(spliced.data, SV_FMT " # " SV_FMT, SV_ARG(prev_content), SV_ARG(line));
 
-    table[pos.y * g.x + pos.x].sv = spliced;
-    if (width[pos.x] < spliced.len) width[pos.x] = spliced.len;
+    table[pos.y * g.x + pos.x].content = spliced;
+    if (width[pos.x] < spliced.len)
+      width[pos.x] = spliced.len;
   }
+  return long_svs;
 }
 
+static void print_long_entries(VecSV vec, FILE *stream) {
+  for (size_t i = 0; i < vec.count; i++) {
+    fprintf(stream, "<%zu>: " SV_FMT "\n", i + 1, SV_ARG(vec.data[i]));
+  }
+}
 #endif // TABLIFY_H_

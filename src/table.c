@@ -14,6 +14,11 @@ Tuple read_table(Sv f) {
 
   while (f.len > 0) {
     Sv line = sv_split_escaped(&f, '\n');
+    
+    // a line starting with '<' means we reached the end of the table and
+    // we are  in the long line references section
+    if (line.data && *line.data == '<') { break; }
+
     ret.y++;
     if (sep)
       sep[l] = separator_line(line);
@@ -22,7 +27,7 @@ Tuple read_table(Sv f) {
       Sv entry = sv_trim(sv_split_escaped(&line, *delim));
       if (table && width && sep) {
 
-        table[l * g.x + c].sv = entry;
+        table[l * g.x + c].content = entry;
         if (*entry.data == '=' && !sep[l])
           table[l * g.x + c].deps = get_deps(entry);
 
@@ -49,7 +54,7 @@ Tuple read_table(Sv f) {
 void print_table( FILE *stream) {
   for (size_t i = 0; i < g.y; i++) {
     if (sep[i]) {
-      print_entry(table[i * g.x].sv, width[0] == 0 ? 0 : width[0] + 1, LEFT_H,
+      print_entry(table[i * g.x].content, width[0] == 0 ? 0 : width[0] + 1, LEFT_H,
                   stream);
       fprintf(stream, "%c", *delim);
       for (size_t j = 1; j < g.x; j++) {
@@ -57,11 +62,11 @@ void print_table( FILE *stream) {
         fprintf(stream, "%c", *delim);
       }
     } else {
-      print_entry(table[i * g.x].sv, width[0] == 0 ? 0 : width[0] + 1, LEFT_H,
+      print_entry(table[i * g.x].content, width[0] == 0 ? 0 : width[0] + 1, LEFT_H,
                   stream);
       fprintf(stream, "%c", *delim);
       for (size_t j = 1; j < g.x; j++) {
-        print_entry(table[i * g.x + j].sv, width[j] + 2, align[j], stream);
+        print_entry(table[i * g.x + j].content, width[j] + 2, align[j], stream);
         fprintf(stream, "%c", *delim);
       }
     }
