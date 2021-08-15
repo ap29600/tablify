@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
 
     splice_results(out);
 
-    free(out.data);
+    // free(out.data);
   }
 
   FILE *output;

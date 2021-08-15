@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -pedantic -ggdb
+CFLAGS = -Wall -Wmissing-prototypes -Wextra -std=c11 -pedantic -O3
 LFLAGS = -x c -fPIC -c
 BINARY_PATH = ~/.local/bin
 

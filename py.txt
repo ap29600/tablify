@@ -1,5 +1,0 @@
-import math as m
-A1 =m.exp(2) # 7.38905609893065
-print( "A1 =" + str(A1) )
-B1 =m.log(A1) # 2.0
-print( "B1 =" + str(B1) )

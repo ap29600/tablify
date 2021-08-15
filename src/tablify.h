@@ -315,8 +315,6 @@ static int try_resolve(Tuple pos, FILE *stream) {
     // iterate over dependencies
     for (size_t i = 0; i < c->deps.count; i++) {
       Tuple p = pos_of(c->deps.data[i]);
-      // printf("as dep: %c%d (%zu, %zu)\n", col_of(p.x), row_of(sep, p.y), p.x,
-      // p.y);
       if (try_resolve(p, stream))
         return 1;
     }
@@ -329,6 +327,7 @@ static int try_resolve(Tuple pos, FILE *stream) {
     return 0;
   case PENDING: // dependency cycle !!
   default:
+    fprintf(stderr, "Dependency cycle detected on cell %c%d\n", col, row);
     return 1;
   }
 }
@@ -362,7 +361,7 @@ static void splice_results(string_view sv) {
 
     string_view spliced = {.len = prev_content.len + line.len + 3, // 3 is for " # " preceding the result
                            .data = NULL};
-    spliced.data = (char *)calloc(spliced.len, 1);
+    spliced.data = (char *)malloc(spliced.len + 1); // +1 for the null terminator
     if (!spliced.data) {
       fprintf(stderr, "Allocation failed\n");
       exit(1);
