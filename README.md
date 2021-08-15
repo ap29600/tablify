@@ -73,10 +73,10 @@ $ make clean install
 
 ### Default behaviour
 By default `tablify` will read the table from `stdin` and output it to `stdout` formatted.
-Columns are separated by the '|' character, and any row containing only whitespace, '|', '/', ':' and
-exactly one of the characters '-'and '=' (this character may repeat, but both are not allowed at the same time)
-is interpreted as a separator line and filled with either '-' or '=' depending on wich is found.
-Within a separator line it is possible to choose left, right or center alignment respectively by placing a ':' character either before
+Columns are separated by the `'|'` character, and any row containing only whitespace, `'|'`, `'/'`, `':'` and
+exactly one of the characters `'-'`and `'='` (this character may repeat, but both are not allowed at the same time)
+is interpreted as a separator line and filled with either `'-'` or `'='` depending on wich is found.
+Within a separator line it is possible to choose left, right or center alignment respectively by placing a `':'` character either before
 the separators, after them or by omitting it:
 
 ```
