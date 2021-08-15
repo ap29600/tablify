@@ -12,6 +12,7 @@ static const char *ignore = "/:";
 static const char *seps = "-=";
 static const char *delim = "|";
 static const char *input = NULL;
+static const char *out_file = NULL;
 static int compute = 0;
 
 typedef enum {
@@ -33,50 +34,49 @@ typedef struct {
   size_t cap;
 } Deps;
 
+enum eval_state { NOT_VISITED, PENDING, COMPLETE };
+
 typedef struct {
   string_view sv;
   Deps deps;
-  enum { NOT_VISITED, PENDING, COMPLETE } state;
+  enum eval_state state;
 } Cell;
 
 typedef string_view Sv;
 
-static Cell   *table = NULL;
+static Cell *table = NULL;
 static size_t *width = NULL;
-static Align  *align = NULL;
-static char   *sep   = NULL;
+static Align *align = NULL;
+static char *sep = NULL;
 static Tuple g = {0}; // table geometry
 
-int contains(const char *s, char c);
+static int contains(const char *s, char c);
 
-// index conversion 
-char col_of(size_t c);
-int row_of(size_t r);
-Tuple pos_of(string_view name);
+// index conversion
+static char col_of(size_t c);
+static int row_of(size_t r);
+static Tuple pos_of(string_view name);
 
 // table processing
-char separator_line(Sv s);
-Align get_align(Sv s);
-Deps get_deps(string_view sv);
-void dump_all_dependencies();
+static char separator_line(Sv s);
+static Align get_align(Sv s);
+static Deps get_deps(string_view sv);
+static void dump_all_dependencies();
 
-Tuple read_table(Sv f);
+static Tuple read_table(Sv f);
 
 // formatting
-void pad(size_t width, char fill, FILE *stream);
-void print_sep(char fill, size_t width, Align align, FILE *stream);
-void print_entry(Sv s, size_t width, Align align, FILE *stream);
-void print_table(FILE *stream);
-void print_computation_statement(char col, int row, Cell *c, FILE *stream);
-void print_computation_steps(FILE *stream);
-int try_resolve(Tuple pos, FILE *stream);
+static void pad(size_t width, char fill, FILE *stream);
+static void print_sep(char fill, size_t width, Align align, FILE *stream);
+static void print_entry(Sv s, size_t width, Align align, FILE *stream);
+static void print_table(FILE *stream);
+static void print_computation_statement(char col, int row, Cell *c,
+                                        FILE *stream);
+static void print_computation_steps(FILE *stream);
+static int try_resolve(Tuple pos, FILE *stream);
+static void splice_results(string_view sv);
 
-#endif // TABLIFY_H_
-
-#ifdef TABLIFY_IMPLEMENTATION
-#undef TABLIFY_IMPLEMENTATION
-
-void print_sep(char fill, size_t width, Align align, FILE *stream) {
+static void print_sep(char fill, size_t width, Align align, FILE *stream) {
   size_t sep_width = width;
   switch (align) {
   case LEFT:
@@ -97,7 +97,7 @@ void print_sep(char fill, size_t width, Align align, FILE *stream) {
     fputc(':', stream);
 }
 
-Align get_align(Sv s) {
+static Align get_align(Sv s) {
   if (s.data[0] == ':') {
     if (s.data[s.len - 1] == ':')
       return CENTER;
@@ -109,7 +109,7 @@ Align get_align(Sv s) {
     return CENTER;
 }
 
-int contains(const char *s, char c) {
+static int contains(const char *s, char c) {
   for (size_t i = 0; s[i] != '\0'; i++)
     if (s[i] == c)
       return 1;
@@ -118,7 +118,7 @@ int contains(const char *s, char c) {
 
 // return the separator character if the line is supposed to be a
 // separator line, otherwise return 0.
-char separator_line(Sv s) {
+static char separator_line(Sv s) {
   char sep = '\0';
   for (size_t i = 0; i < s.len; i++)
     if (!sep && contains(seps, s.data[i]))
@@ -131,13 +131,13 @@ char separator_line(Sv s) {
   return sep;
 }
 
-void pad(size_t width, char fill, FILE *stream) {
+static void pad(size_t width, char fill, FILE *stream) {
   for (size_t i = 0; i < width; i++) {
     fprintf(stream, "%c", fill);
   }
 }
 
-void print_entry(Sv s, size_t width, Align align, FILE *stream) {
+static void print_entry(Sv s, size_t width, Align align, FILE *stream) {
   size_t pad_left = 0, pad_right = 0, utf8len = sv_len_utf_8(s);
 
   switch (align) {
@@ -168,7 +168,7 @@ void print_entry(Sv s, size_t width, Align align, FILE *stream) {
   pad(pad_right, ' ', stream);
 }
 
-string_view next_ref(string_view sv) {
+static string_view next_ref(string_view sv) {
   while (sv.len > 0) {
 
     int letter = 0;
@@ -187,7 +187,7 @@ string_view next_ref(string_view sv) {
     // invalidate it:
     if (number && !isalnum(sv.data[i])) {
       // we're done
-      return (string_view){.data = sv.data, .len = i};
+      return (string_view){.len = i, .data = sv.data};
     }
 
     sv.data += i;
@@ -202,7 +202,7 @@ string_view next_ref(string_view sv) {
   return (string_view){0};
 }
 
-Deps get_deps(string_view sv) {
+static Deps get_deps(string_view sv) {
   Deps deps = {
       .data = (string_view *)malloc(8 * sizeof(string_view)),
       .count = 0,
@@ -237,8 +237,8 @@ Deps get_deps(string_view sv) {
   return deps;
 }
 
-char col_of(size_t c) { return c - 1 + 'A'; }
-int row_of(size_t r) {
+static char col_of(size_t c) { return c - 1 + 'A'; }
+static int row_of(size_t r) {
   int ret = 0;
   for (size_t i = 0; i < r; i++) {
     if (!sep[i])
@@ -247,7 +247,7 @@ int row_of(size_t r) {
   return ret;
 }
 
-Tuple pos_of(string_view name) {
+static Tuple pos_of(string_view name) {
   Tuple ret = {0};
   ret.x = name.data[0] - 'A' + 1;
   size_t y = 0;
@@ -264,7 +264,8 @@ Tuple pos_of(string_view name) {
   return ret;
 }
 
-void print_computation_statement(char col, int row, Cell *c, FILE *stream) {
+static void print_computation_statement(char col, int row, Cell *c,
+                                        FILE *stream) {
   if (!c) {
     fprintf(stream, "%c%d = 0 \n", col, row);
   }
@@ -280,12 +281,12 @@ void print_computation_statement(char col, int row, Cell *c, FILE *stream) {
   fprintf(stream, "print( \"%c%d =\" + str(%c%d) )\n", col, row, col, row);
 }
 
-void print_deps(Deps v) {
+static void print_deps(Deps v) {
   for (size_t i = 0; i < v.count; i++)
     printf("  ref{ " SV_FMT " }\n", SV_ARG(v.data[i]));
 }
 
-void dump_all_dependencies() {
+static void dump_all_dependencies() {
   for (size_t i = 0; i < g.y; i++)
     for (size_t j = 0; j < g.x; j++) {
       printf("Cell %zu, %zu: \n", j, i);
@@ -293,7 +294,7 @@ void dump_all_dependencies() {
     }
 }
 
-int try_resolve(Tuple pos, FILE *stream) {
+static int try_resolve(Tuple pos, FILE *stream) {
   if (pos.x >= g.x || pos.y >= g.y) {
     printf("calculating: %zu, %zu\n", pos.x, pos.y);
     printf("Cell out of bounds\n");
@@ -314,7 +315,8 @@ int try_resolve(Tuple pos, FILE *stream) {
     // iterate over dependencies
     for (size_t i = 0; i < c->deps.count; i++) {
       Tuple p = pos_of(c->deps.data[i]);
-      // printf("as dep: %c%d (%zu, %zu)\n", col_of(p.x), row_of(sep, p.y), p.x, p.y);
+      // printf("as dep: %c%d (%zu, %zu)\n", col_of(p.x), row_of(sep, p.y), p.x,
+      // p.y);
       if (try_resolve(p, stream))
         return 1;
     }
@@ -331,8 +333,8 @@ int try_resolve(Tuple pos, FILE *stream) {
   }
 }
 
-void print_computation_steps(FILE *stream) {
-  fprintf (stream, "import math as m\n");
+static void print_computation_steps(FILE *stream) {
+  fprintf(stream, "import math as m\n");
   for (size_t x = 1; x < g.x; x++)
     for (size_t y = 0; y < g.y; y++) {
       if (!table[y * g.x + x].sv.data || table[y * g.x + x].sv.data[0] != '=')
@@ -344,5 +346,32 @@ void print_computation_steps(FILE *stream) {
     }
 }
 
+static void splice_results(string_view sv) {
+  while (sv.len > 0) {
+    string_view line = sv_split_escaped(&sv, '\n');
+    string_view cell = sv_trim(sv_split(&line, '='));
+    line = sv_trim(line);
 
-#endif // TABLIFY_IMPLEMENTATION
+    Tuple pos = pos_of(cell);
+    string_view prev_content = table[pos.y * g.x + pos.x].sv;
+
+    // only put results back in expressions that start with '='
+    if (prev_content.data[0] != '=')
+      continue;
+    prev_content = sv_trim ( sv_split_escaped (&prev_content, '#') );
+
+    string_view spliced = {.len = prev_content.len + line.len + 3, // 3 is for " # " preceding the result
+                           .data = NULL};
+    spliced.data = (char *)calloc(spliced.len, 1);
+    if (!spliced.data) {
+      fprintf(stderr, "Allocation failed\n");
+      exit(1);
+    }
+    sprintf(spliced.data, SV_FMT " # " SV_FMT, SV_ARG(prev_content), SV_ARG(line));
+
+    table[pos.y * g.x + pos.x].sv = spliced;
+    if (width[pos.x] < spliced.len) width[pos.x] = spliced.len;
+  }
+}
+
+#endif // TABLIFY_H_

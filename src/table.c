@@ -54,7 +54,7 @@ void print_table( FILE *stream) {
       fprintf(stream, "%c", *delim);
       for (size_t j = 1; j < g.x; j++) {
         print_sep(sep[i], width[j] + 2, align[j], stream);
-        printf("%c", *delim);
+        fprintf(stream, "%c", *delim);
       }
     } else {
       print_entry(table[i * g.x].sv, width[0] == 0 ? 0 : width[0] + 1, LEFT_H,
@@ -65,6 +65,6 @@ void print_table( FILE *stream) {
         fprintf(stream, "%c", *delim);
       }
     }
-    printf("\n");
+    fprintf(stream,"\n");
   }
 }

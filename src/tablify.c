@@ -14,6 +14,7 @@ int main(int argc, char **argv) {
   arg_string("--delim", &delim, "the table delimiter");
   arg_string("--separators", &seps, "the line separator characters");
   arg_string("--input", &input, "the input file");
+  arg_string("--output", &out_file, "the output file");
   int help = 0;
   arg_int("--help", &help, "print this help message");
   arg_int("--compute", &compute,
@@ -57,8 +58,6 @@ int main(int argc, char **argv) {
 
   // dump_deps(g, table);
 
-  print_table(stdout);
-
   if (compute) {
     FILE *py = fopen("py.txt", "w");
     print_computation_steps(py);
@@ -71,11 +70,19 @@ int main(int argc, char **argv) {
     }
 
     string_view out = sv_slurp_stream(p_out);
-
-    printf(SV_FMT "\n", SV_ARG(out));
-
     pclose(p_out);
+
+    splice_results(out);
+
+    free(out.data);
   }
+
+  FILE *output;
+  if (out_file)
+    output = fopen(out_file, "w");
+  else
+    output = stdout;
+  print_table(output);
 
   // cleanup
   free(table);

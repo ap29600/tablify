@@ -70,9 +70,57 @@ $ make clean install
 ```
 
 ## Usage
-(A random excuse to insert a table in this readme)
 
-The program supports a few CLI options:
+### Default behaviour
+By default `tablify` will read the table from `stdin` and output it to `stdout` formatted.
+Columns are separated by the '|' character, and any row containing only whitespace, '|', '/', ':' and
+exactly one of the characters '-'and '=' (this character may repeat, but both are not allowed at the same time)
+is interpreted as a separator line and filled with either '-' or '=' depending on wich is found.
+Within a separator line it is possible to choose left, right or center alignment respectively by placing a ':' character either before
+the separators, after them or by omitting it:
+
+```
+| Left aligned cell | center aligned cell | Right aligned cell |
+|:------------------|---------------------|-------------------:|
+| left              |       center        |              right |
+```
+
+### With the `--compute 1` flag
+if the compute flag is provided, cells whose content starts with `=` (whitesapce excluded) are interpreted as expressions
+and can contain python expressions, which will be evaluated and added at the end of the cell as a python comment:
+
+For example the following table:
+
+```
+| A | B | C |
+| - 
+| 123 | =A1 | = A1 +  0.5 * B1 |
+```
+
+Will be turned into:
+```
+|  A  |     B     |            C            |
+|-----|-----------|-------------------------|
+| 123 | =A1 # 123 | = A1 + 0.5 * B1 # 184.5 |
+```
+
+the nice thing about this is that any python object is also allowed: here's an example with lists.
+```
+|     A     |   B    |              C              |
+|-----------|--------|-----------------------------|
+| [1, 2, 3] | [4, 5] | = A1 + B1 # [1, 2, 3, 4, 5] |
+```
+
+And of course the `math` library is available as `m`: 
+
+```
+|              A               |        B         |
+|------------------------------|------------------|
+| =m.exp(2) # 7.38905609893065 | =m.log(A1) # 2.0 |
+```
+
+### Flags
+(A random excuse to insert a table in this readme)
 
 |           Flag |  Type  | Description                                                                                                    |
 |---------------:|--------|:---------------------------------------------------------------------------------------------------------------|
@@ -81,7 +129,6 @@ The program supports a few CLI options:
 |      `--input` | String | The input file to read the table from. If no file is provided, input is read from `stdin`.                     |
 |     `--ignore` | String | Characters that are allowed to be on the separator line without invalidating it. Defaults are `'/'` and `':'`. |
 | `--separators` | String | Characters that can be used to construct a separator line. Defaults are `'-'` and `'='`.                       |
-
 
 
 
