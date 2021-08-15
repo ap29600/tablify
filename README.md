@@ -42,7 +42,7 @@ on tables in code comments.
     - [ ] support for multiple alignments in the same column
 - [ ] clean up the parsing loop.
 - [X] Add support for calculations in python.
-    - [ ] find a way to stitch the result back into the table, without
+    - [X] find a way to stitch the result back into the table, without
           sacrificing stability (running the program on its own output 
           should not change anything).
 
