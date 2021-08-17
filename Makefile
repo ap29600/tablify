@@ -20,7 +20,7 @@ bin:
 bin/tablify: obj/tablify.o obj/libargs.so obj/libstringview.so bin
 	$(CC) $(CFLAGS) obj/tablify.o -L./obj -lstringview -largs -o bin/tablify 
 
-obj/tablify.o: src/tablify.c src/tablify.h src/table.c obj
+obj/tablify.o: src/tablify.c src/tablify.h src/io.h obj
 	$(CC) $(CFLAGS) -c src/tablify.c -o obj/tablify.o
 
 obj/libargs.so: lib/args.h obj

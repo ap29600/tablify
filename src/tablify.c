@@ -4,7 +4,6 @@
 #include <stdio.h>
 #define TABLIFY_IMPLEMENTATION
 #include "io.h"
-#include "table.c"
 #include "tablify.h"
 
 int main(int argc, char **argv) {

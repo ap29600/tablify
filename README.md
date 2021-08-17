@@ -5,6 +5,12 @@ There is already a vim plugin that works very similarly
 to this program and is called tablify. I will be changing the
 name as soon as I can think of one.
 
+# Pack your things, we're moving
+
+Due to the name collision the project is now distributed under (Cyborg)[https://github.com/ap29600/cyborg],
+my collection of org-like tools for vim.
+
+
 ## A (not so) simple table formatter
 
 The idea is to have a simple tool to get a badly written markdown-style table:
