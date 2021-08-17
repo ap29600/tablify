@@ -1,5 +1,10 @@
 # Tablify
 
+# Well, that's awkward!
+There is already a vim plugin that works very similarly
+to this program and is called tablify. I will be changing the
+name as soon as I can think of one.
+
 ## A (not so) simple table formatter
 
 The idea is to have a simple tool to get a badly written markdown-style table:
