@@ -3,9 +3,9 @@
 #include "../lib/stringview.h"
 #include <stdio.h>
 #define TABLIFY_IMPLEMENTATION
-#include "tablify.h"
-
+#include "io.h"
 #include "table.c"
+#include "tablify.h"
 
 int main(int argc, char **argv) {
   arg_string("--ignore", &ignore,
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   read_table(f);
 
   // dump_deps(g, table);
-    
+
   VecSV long_entries = {0};
   if (compute) {
     FILE *py = fopen("py.txt", "w");
@@ -85,7 +85,6 @@ int main(int argc, char **argv) {
     output = stdout;
   print_table(output);
   print_long_entries(long_entries, output);
-
 
   // cleanup
   free(table);

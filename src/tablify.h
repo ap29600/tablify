@@ -8,14 +8,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+// constants and parameters //////////////////////
+
 static const char *ignore = "/:";
 static const char *seps = "-=";
 static const char *delim = "|";
 static const char *input = NULL;
 static const char *out_file = NULL;
 static int compute = 0;
-static int max_result_len = 20;
+static size_t max_result_len = 20;
 
+// structs and data types ////////////////////////
+
+// defines the alignment of a cell
 typedef enum {
   CENTER = 0,
   LEFT,
@@ -24,19 +29,24 @@ typedef enum {
   RIGHT_H,
 } Align;
 
+// holds tho values (dimensions or coordinates)
 typedef struct {
   size_t x;
   size_t y;
 } Tuple;
 
+// variable size array of string views
 typedef struct {
   string_view *data;
   size_t count;
   size_t cap;
 } VecSV;
 
+// evaluation state of a cell
 enum eval_state { NOT_VISITED, PENDING, COMPLETE };
 
+
+// a cell in the table
 typedef struct {
   string_view content;
   VecSV deps;
@@ -45,11 +55,15 @@ typedef struct {
 
 typedef string_view Sv;
 
+/// globals (table and friends) /////////////////////////
+
 static Cell *table = NULL;
 static size_t *width = NULL;
 static Align *align = NULL;
 static char *sep = NULL;
 static Tuple g = {0}; // table geometry
+
+//// function declarations /////////////
 
 static int contains(const char *s, char c);
 
@@ -67,36 +81,10 @@ static void dump_all_dependencies();
 static Tuple read_table(Sv f);
 
 // formatting
-static void pad(size_t width, char fill, FILE *stream);
-static void print_sep(char fill, size_t width, Align align, FILE *stream);
-static void print_entry(Sv s, size_t width, Align align, FILE *stream);
-static void print_table(FILE *stream);
-static void print_computation_statement(char col, int row, Cell *c,
-                                        FILE *stream);
-static void print_computation_steps(FILE *stream);
 static int try_resolve(Tuple pos, FILE *stream);
 static VecSV splice_results(string_view sv);
 
-static void print_sep(char fill, size_t width, Align align, FILE *stream) {
-  size_t sep_width = width;
-  switch (align) {
-  case LEFT:
-  case LEFT_H:
-    sep_width -= 1;
-    fputc(':', stream);
-    break;
-  case RIGHT:
-  case RIGHT_H:
-    sep_width -= 1;
-    break;
-  case CENTER:
-    break;
-  }
-  pad(sep_width, fill, stream);
-
-  if (align == RIGHT || align == RIGHT_H)
-    fputc(':', stream);
-}
+// function definitions ////////////////////////////////
 
 static Align get_align(Sv s) {
   if (s.data[0] == ':') {
@@ -132,42 +120,6 @@ static char separator_line(Sv s) {
   return sep;
 }
 
-static void pad(size_t width, char fill, FILE *stream) {
-  for (size_t i = 0; i < width; i++) {
-    fprintf(stream, "%c", fill);
-  }
-}
-
-static void print_entry(Sv s, size_t width, Align align, FILE *stream) {
-  size_t pad_left = 0, pad_right = 0, utf8len = sv_len_utf_8(s);
-
-  switch (align) {
-  case LEFT:
-    pad_left = 1;
-    pad_right = width - utf8len - pad_left;
-    break;
-  case LEFT_H:
-    pad_left = 0;
-    pad_right = width - utf8len - pad_left;
-    break;
-  case CENTER:
-    pad_left = (width - utf8len) / 2;
-    pad_right = width - utf8len - pad_left;
-    break;
-  case RIGHT:
-    pad_right = 1;
-    pad_left = width - utf8len - pad_right;
-    break;
-  case RIGHT_H:
-    pad_right = 0;
-    pad_left = width - utf8len - pad_right;
-    break;
-  }
-
-  pad(pad_left, ' ', stream);
-  fprintf(stream, "" SV_FMT "", SV_ARG(s));
-  pad(pad_right, ' ', stream);
-}
 
 static string_view next_ref(string_view sv) {
   while (sv.len > 0) {
@@ -265,7 +217,7 @@ static Tuple label_to_position(string_view name) {
   return ret;
 }
 
-static void print_computation_statement(char col, int row, Cell *c,
+static void print_statement(char col, int row, Cell *c,
                                         FILE *stream) {
   if (!c) {
     fprintf(stderr, "Attempting to print a nonexistent cell: %c%d\n", col, row);
@@ -284,19 +236,6 @@ static void print_computation_statement(char col, int row, Cell *c,
   }
 
   fprintf(stream, "print( \"%c%d =\" + str(%c%d) )\n", col, row, col, row);
-}
-
-static void print_deps(VecSV v) {
-  for (size_t i = 0; i < v.count; i++)
-    printf("  ref{ " SV_FMT " }\n", SV_ARG(v.data[i]));
-}
-
-static void dump_all_dependencies() {
-  for (size_t i = 0; i < g.y; i++)
-    for (size_t j = 0; j < g.x; j++) {
-      printf("Cell %zu, %zu: \n", j, i);
-      print_deps(table[i * g.x + j].deps);
-    }
 }
 
 static int try_resolve(Tuple pos, FILE *stream) {
@@ -324,7 +263,7 @@ static int try_resolve(Tuple pos, FILE *stream) {
         return 1;
     }
 
-    print_computation_statement(col, row, c, stream);
+    print_statement(col, row, c, stream);
 
     c->state = COMPLETE;
     return 0;
@@ -337,19 +276,6 @@ static int try_resolve(Tuple pos, FILE *stream) {
   }
 }
 
-static void print_computation_steps(FILE *stream) {
-  fprintf(stream, "import math as m\n");
-  for (size_t x = 1; x < g.x; x++)
-    for (size_t y = 0; y < g.y; y++) {
-      if (!table[y * g.x + x].content.data ||
-          table[y * g.x + x].content.data[0] != '=')
-        continue;
-      if (try_resolve((Tuple){.x = x, .y = y}, stream)) {
-        printf("dependency cycle detected\n");
-        return;
-      }
-    }
-}
 
 static VecSV splice_results(string_view sv) {
   VecSV long_svs = {0};
@@ -394,9 +320,4 @@ static VecSV splice_results(string_view sv) {
   return long_svs;
 }
 
-static void print_long_entries(VecSV vec, FILE *stream) {
-  for (size_t i = 0; i < vec.count; i++) {
-    fprintf(stream, "<%zu>: " SV_FMT "\n", i + 1, SV_ARG(vec.data[i]));
-  }
-}
 #endif // TABLIFY_H_
